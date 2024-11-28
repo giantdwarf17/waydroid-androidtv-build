@@ -1,0 +1,93 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Build Android TV
+
+on:
+  # schedule:
+  #   - cron: "0 0 * * 0"  # Runs once a week (Sunday at midnight)
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: self-hosted
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt -y install lib32ncurses5-dev libncurses5 libncurses5-dev bc bison build-essential \
+          ccache curl flex g++-multilib gcc-multilib git git-lfs gnupg gperf imagemagick lib32readline-dev \
+          lib32z1-dev libelf-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+          schedtool squashfs-tools xsltproc zip zlib1g-dev android-sdk
+  
+      - name: Create directories
+        run: |
+          mkdir -p ~/android/lineage
+          
+      - name: Install repo
+        run: |
+          mkdir -p ~/.bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
+          chmod a+rx ~/.bin/repo
+
+      - name: Ensure python symlink
+        run: |
+          sudo ln -sf /usr/bin/python3 /usr/bin/python
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git lfs install
+
+      - name: Setup caching
+        run: |
+          echo "export USE_CCACHE=1" >> ~/.bashrc
+          echo "export CCACHE_EXEC=/usr/bin/ccache" >> ~/.bashrc
+          ccache -M 50G
+          
+      - name: Initialize repository
+        run: |
+          cd ~/android/lineage
+          ~/.bin/repo init -u https://github.com/LineageOS/android.git -b lineage-18.1 --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=stable
+
+      - name: Verify .repo directory
+        run: |
+          ls -la ~/android/lineage/.repo
+          
+      - name: Download source code
+        run: |
+          cd ~/android/lineage
+          ~/.bin/repo sync build/make
+          wget -O - https://raw.githubusercontent.com/waydroid/android_vendor_waydroid/lineage-18.1/manifest_scripts/generate-manifest.sh | bash
+          ~/.bin/repo sync
+          
+      - name: Start build
+        run: |
+          cd ~/android/lineage
+          . build/envsetup.sh
+          apply-waydroid-patches
+          lunch lineage_waydroid_arm64-userdebug
+          make systemimage -j$(nproc --all)
+          make vendorimage -j$(nproc --all)
+          simg2img $OUT/system.img ~/system.img
+          simg2img $OUT/vendor.img ~/vendor.img
+          
+      - name: Set current date as env variable
+        run: echo "NOW=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: nightly-tag-${{ env.NOW }}
+          name: nightly-release-${{ env.NOW }}
+          body: LineageOS 18.1 Waydroid build for x84_64 Android TV
+          artifacts: |
+            ~/system.img
+            ~/vendor.img
