@@ -35,6 +35,7 @@ jobs:
           mkdir -p ~/.bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
           chmod a+rx ~/.bin/repo
+          echo ~/.bin >> $GITHUB_PATH
 
       - name: Ensure python symlink
         run: |
@@ -55,7 +56,7 @@ jobs:
       - name: Initialize repository
         run: |
           cd ~/android/lineage
-          ~/.bin/repo init -u https://github.com/LineageOS/android.git -b lineage-18.1 --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=stable
+          repo init -u https://github.com/LineageOS/android.git -b lineage-18.1 --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=stable
 
       - name: Verify .repo directory
         run: |
@@ -64,9 +65,9 @@ jobs:
       - name: Download source code
         run: |
           cd ~/android/lineage
-          ~/.bin/repo sync build/make
+          repo sync build/make
           wget -O - https://raw.githubusercontent.com/waydroid/android_vendor_waydroid/lineage-18.1/manifest_scripts/generate-manifest.sh | bash
-          ~/.bin/repo sync
+          repo sync
           
       - name: Start build
         run: |
