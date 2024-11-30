@@ -36,6 +36,7 @@ jobs:
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
           chmod a+rx ~/.bin/repo
           echo ~/.bin >> $GITHUB_PATH
+          repo sync && repo forall -c "git lfs pull"
 
       - name: Ensure python symlink
         run: |
