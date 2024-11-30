@@ -36,7 +36,6 @@ jobs:
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
           chmod a+rx ~/.bin/repo
           echo ~/.bin >> $GITHUB_PATH
-          repo sync && repo forall -c "git lfs pull"
 
       - name: Ensure python symlink
         run: |
@@ -65,6 +64,7 @@ jobs:
           
       - name: Download source code
         run: |
+          repo sync && repo forall -c "git lfs pull"
           cd ~/android/lineage
           repo sync build/make
           wget -O - https://raw.githubusercontent.com/waydroid/android_vendor_waydroid/lineage-18.1/manifest_scripts/generate-manifest.sh | bash
